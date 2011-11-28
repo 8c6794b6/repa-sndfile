@@ -18,6 +18,7 @@ Description:
 Extra-source-files:
   example/gensine.hs
   example/rw.hs
+  README
 
 flag dev
   description:
