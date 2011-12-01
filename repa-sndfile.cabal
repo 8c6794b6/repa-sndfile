@@ -1,19 +1,18 @@
 Name:           repa-sndfile
-Version:        2.1.1.0
-Synopsis:       Read and write sound files to repa via libsndfile
+Version:        2.1.0.0
+Synopsis:       Reading and writing sound files with repa arrays
 License:        BSD3
 License-file:   LICENSE
-Author:         8c6794b6
-Maintainer:     8c6794b6@gmail.com
-Copyright:      8c6794b6, 2011
+Author:         <8c6794b6@gmail.com>
+Maintainer:     <8c6794b6@gmail.com>
 Category:       Data Structures
 Build-type:     Simple
 Cabal-version:  >=1.2
-
 Description:
-  Support repa array for reading and writing in various sound file.
-  The code is using libsndfile and hsndfile package as its haskell
-  binding hsndfile.
+  Add supporting of reading and writing audio data with repa arrays in
+  various format.
+  .
+  The code is using libsndfile and hsndfile package.
 
 Extra-source-files:
   example/gensine.hs
@@ -27,7 +26,6 @@ flag dev
     False
 
 executable rw
-
   main-is: example/rw.hs
   if flag(dev)
     buildable: True
@@ -40,7 +38,6 @@ executable rw
     -auto-all -caf-all
 
 executable gensine
-
   main-is: example/gensine.hs
   if flag(dev)
     buildable: True
@@ -53,7 +50,6 @@ executable gensine
     -auto-all -caf-all
 
 Library
-
   ghc-options:
     -Wall
     -fno-warn-unused-do-bind
@@ -74,3 +70,7 @@ Library
       vector >= 0.7 && < 0.9
     Other-modules:
       Test.ReadWrite
+
+source-repository head
+  type: git
+  location: https://github.com/8c6794b6/repa-sndfile.git
