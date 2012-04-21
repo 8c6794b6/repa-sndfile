@@ -1,5 +1,5 @@
 Name:           repa-sndfile
-Version:        2.2.0.0
+Version:        3.1.1.1
 Synopsis:       Reading and writing sound files with repa arrays
 License:        BSD3
 License-file:   LICENSE
@@ -7,7 +7,7 @@ Author:         <8c6794b6@gmail.com>
 Maintainer:     <8c6794b6@gmail.com>
 Category:       Data Structures
 Build-type:     Simple
-Cabal-version:  >=1.2
+Cabal-version:  >=1.8
 Description:
   Add supporting of reading and writing audio data with repa arrays in
   various format.
@@ -25,51 +25,75 @@ flag dev
   default:
     False
 
-executable rw
-  main-is: example/rw.hs
-  if flag(dev)
-    buildable: True
-  else
-    buildable: False
-  ghc-options:
-    -Wall -rtsopts -threaded
-    -fno-warn-unused-do-bind
-    -fno-warn-orphans
-    -auto-all -caf-all
-
-executable gensine
-  main-is: example/gensine.hs
-  if flag(dev)
-    buildable: True
-  else
-    buildable: False
-  ghc-options:
-    -Wall -rtsopts -threaded
-    -fno-warn-unused-do-bind
-    -fno-warn-orphans
-    -auto-all -caf-all
-
 Library
   ghc-options:
     -Wall
     -fno-warn-unused-do-bind
     -fno-warn-orphans
-    -O2
+    -O3 -fllvm -optl-O3
+  ghc-prof-options:
+    -caf-all -auto-all
 
   Exposed-modules:
     Data.Array.Repa.IO.Sndfile
 
   Build-depends:
     base >= 4.0 && < 5.0,
-    hsndfile >= 0.5.1,
-    repa >= 2.2 && < 2.3
+    hsndfile >= 0.5.2 && < 1.0,
+    repa >= 3.1.1 && < 3.2
 
   if flag(dev)
     build-depends:
-      hsndfile-vector >= 0.4.0,
-      vector >= 0.7 && < 0.9
+      hsndfile-vector >= 0.5.2,
+      vector >= 0.9 && < 1.0
     Other-modules:
       Test.ReadWrite
+
+executable rw
+  main-is:
+    example/rw.hs
+  if flag(dev)
+    buildable: True
+  else
+    buildable: False
+  build-depends:
+    base >= 4 && < 5,
+    hsndfile >= 0.5.2 && < 1.0,
+    hsndfile-vector >= 0.5.2 && < 1.0,
+    repa >= 3.1.1 && < 3.2,
+    vector >= 0.9 && < 1.0,
+    repa-sndfile -any
+
+  ghc-options:
+    -Wall -rtsopts -threaded
+    -fno-warn-unused-do-bind
+    -fno-warn-orphans
+  ghc-prof-options:
+    -caf-all -auto-all
+
+executable gensine
+  hs-source-dirs:
+    example
+  main-is:
+    gensine.hs
+  if flag(dev)
+    buildable: True
+  else
+    buildable: False
+  build-depends:
+    base >= 4 && < 5,
+    hsndfile >= 0.5.2 && < 1.0,
+    hsndfile-vector >= 0.5.2 && < 1.0,
+    vector >= 0.9 && < 1.0,
+    repa >= 3.1.1 && < 3.2,
+    repa-sndfile -any
+  ghc-options:
+    -Wall -rtsopts -threaded
+    -fno-warn-unused-do-bind
+    -fno-warn-orphans
+    -O3 -fllvm -optl-O3
+  ghc-prof-options:
+    -caf-all -auto-all
 
 source-repository head
   type: git

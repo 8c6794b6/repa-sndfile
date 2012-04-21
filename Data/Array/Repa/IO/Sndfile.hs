@@ -1,3 +1,6 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -40,21 +43,23 @@ module Data.Array.Repa.IO.Sndfile
   , fromMC
   , wav16
   , wav32
-    
+
     -- * References
     -- $references
 
   ) where
 
 import Data.Word (Word16, Word32)
-import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtrBytes, withForeignPtr)
-import Foreign.Storable (Storable(..))
-import System.IO.Unsafe (unsafePerformIO)
+import Foreign.ForeignPtr (ForeignPtr)
 
-import Data.Array.Repa (Array, DIM1, DIM2, Elt, Shape(..), Z(..), (:.)(..))
+import Data.Array.Repa
+  (Array, DIM1, DIM2, Z(..), (:.)(..), Repr)
+import Data.Array.Repa.Eval (Fillable)
+import Data.Array.Repa.Repr.ForeignPtr (F)
 import Sound.File.Sndfile (Buffer(..), Info(..), Sample)
 
 import qualified Data.Array.Repa as R
+import qualified Data.Array.Repa.Repr.ForeignPtr as RF
 import qualified Sound.File.Sndfile as S
 
 {-$examples
@@ -63,24 +68,26 @@ Read \"in.wav\", write to \"out.wav\" with same format.
 
 > module Main where
 >
-> import Data.Array.Repa ((:.)(..), Array, DIM2, Z(..), fromFunction)
+> import Data.Array.Repa
+>   ((:.)(..), Array, Z(..), DIM2, computeP, fromFunction)
+> import Data.Array.Repa.Repr.ForeignPtr (F)
 > import Data.Array.Repa.IO.Sndfile
 >
 > main :: IO ()
 > main = do
->   (i, a) <- readSF "in.wav" :: IO (Info, Array DIM2 Double)
+>   (i, a) <- readSF "in.wav" :: IO (Info, Array F DIM2 Double)
 >   writeSF "out.wav" i a
 
 Write 440hz sine wav for 3 seconds to \"sin440.wav\".
 
 > sin440 :: IO ()
-> sin440 =
+> sin440 = do
 >   let dur = 3; freq = 440; sr = 48000
 >       hdr = wav16 {samplerate = sr, frames = sr * dur}
->       sig :: Array DIM2 Double
 >       sig = fromFunction (Z :. 1 :. dur * sr) $ \(_ :. _ :. i) ->
 >         sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
->   in  writeSF "sin440.wav" hdr sig
+>   sig' <- computeP sig :: IO (Array F DIM2 Double)
+>   writeSF "sin440.wav" hdr sig'
 
 -}
 
@@ -102,128 +109,125 @@ Write 440hz sine wav for 3 seconds to \"sin440.wav\".
 -- is indexed with channel number and frame.  Info could used later for
 -- writing sound file.
 --
-readSF :: forall a. (Elt a, Sample a) => FilePath -> IO (Info, Array DIM2 a)
+readSF ::
+  forall a r. (Sample a, Fillable r a, Repr r a)
+  => FilePath -> IO (Info, Array r DIM2 a)
 readSF path = do
-  (info, arr) <- S.readFile path :: IO (Info, Maybe (Array DIM1 a))
+  (info, arr) <- S.readFile path :: IO (Info, Maybe (Array F DIM1 a))
   case arr of
     Nothing   -> error $ "readSF: failed reading " ++ path
-    Just arr' -> return (info, toMC (S.channels info) arr')
+    Just arr' -> do
+      arr'' <- toMC (S.channels info) arr'
+      return (info, arr'')
 
 {-# INLINE readSF #-}
-{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Double) #-}
-{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Float) #-}
-{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Word16) #-}
-{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Word32) #-}
+{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Double) #-}
+{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Float) #-}
+{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Word16) #-}
+{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Word32) #-}
 
 -- | Write array contents to sound file with given header information.
 --
 -- Expecting an array indexed with channel and frame, as returned from readSF.
 -- i.e. 2-dimensional array with its contents indexed with channel.
 --
-writeSF
-  :: forall a. (Elt a, Sample a) => FilePath -> Info -> Array DIM2 a -> IO ()
+writeSF ::
+  forall a r.
+  ( Sample a, Repr r a, Buffer (Array r DIM1) a
+  , Fillable r a )
+  => FilePath -> Info -> Array r DIM2 a -> IO ()
 writeSF path info arr = do
-  S.writeFile info path (fromMC arr)
+  arr' <- fromMC arr :: IO (Array r DIM1 a)
+  S.writeFile info path arr'
   return ()
 
 {-# INLINE writeSF #-}
-{-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Double -> IO () #-}
-{-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Float -> IO () #-}
-{-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Word16 -> IO () #-}
-{-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Word32-> IO () #-}
+{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Double -> IO () #-}
+{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Float -> IO () #-}
+{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Word16 -> IO () #-}
+{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Word32-> IO () #-}
 
 -- | Wrapper for invoking array with reading sound file.
 --
 -- Performs given action using sound file info and samples as arguments.
 --
 withSF
-  :: forall a b. (Sample a, Elt a)
-  => FilePath -> (Info -> Array DIM2 a -> IO b) -> IO b
+  :: forall a b r. (Sample a, Fillable r a, Repr r a)
+  => FilePath -> (Info -> Array r DIM2 a -> IO b) -> IO b
 withSF path act = do
-  (info, arr) <- S.readFile path :: IO (Info, Maybe (Array DIM1 a))
+  (info, arr) <- S.readFile path :: IO (Info, Maybe (Array F DIM1 a))
   case arr of
     Nothing   -> error ("withSF: failed to read " ++ path)
-    Just arr' -> act info (toMC (S.channels info) arr')
+    Just arr' -> do
+      arr'' <- toMC (S.channels info) arr' :: IO (Array r DIM2 a)
+      act info arr''
 
 {-# INLINE withSF #-}
 {-# SPECIALIZE withSF
-  :: FilePath -> (Info -> Array DIM2 Double -> IO b) -> IO b #-}
+  :: FilePath -> (Info -> Array F DIM2 Double -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
-  :: FilePath -> (Info -> Array DIM2 Float -> IO b) -> IO b #-}
+  :: FilePath -> (Info -> Array F DIM2 Float -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
-  :: FilePath -> (Info -> Array DIM2 Word16 -> IO b) -> IO b #-}
+  :: FilePath -> (Info -> Array F DIM2 Word16 -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
-  :: FilePath -> (Info -> Array DIM2 Word32 -> IO b) -> IO b #-}
+  :: FilePath -> (Info -> Array F DIM2 Word32 -> IO b) -> IO b #-}
 
 -- ---------------------------------------------------------------------------
 -- Internal work
 
 -- | Orphan instance for reading/wriging sound file to array via ForeignPtr.
 --
-instance (Sample e, Elt e) => Buffer (Array DIM1) e where
+instance (Sample e) => Buffer (Array F DIM1) e where
 
   -- Read the whole contents to DIM1 array, ignoring channel number.
   --
-  fromForeignPtr fptr _ count = return $ unsafeFFP (Z :. count) fptr
+  fromForeignPtr fptr _ count = return $ RF.fromForeignPtr (Z :. count) fptr
 
   {-# INLINE fromForeignPtr #-}
   {-# SPECIALIZE fromForeignPtr
-    :: ForeignPtr Double -> Int -> Int -> IO (Array DIM1 Double) #-}
+    :: ForeignPtr Double -> Int -> Int -> IO (Array F DIM1 Double) #-}
   {-# SPECIALIZE fromForeignPtr
-    :: ForeignPtr Float -> Int -> Int -> IO (Array DIM1 Float) #-}
+    :: ForeignPtr Float -> Int -> Int -> IO (Array F DIM1 Float) #-}
   {-# SPECIALIZE fromForeignPtr
-    :: ForeignPtr Word16 -> Int -> Int -> IO (Array DIM1 Word16) #-}
+    :: ForeignPtr Word16 -> Int -> Int -> IO (Array F DIM1 Word16) #-}
   {-# SPECIALIZE fromForeignPtr
-    :: ForeignPtr Word32 -> Int -> Int -> IO (Array DIM1 Word32) #-}
+    :: ForeignPtr Word32 -> Int -> Int -> IO (Array F DIM1 Word32) #-}
 
   -- Allocate whole memory for writing, fill in with element of array.
   --
   toForeignPtr arr = do
-    let sh = R.extent arr
-        nelem = R.size sh
-        dummy = sizeOf (undefined :: e)
-    fptr <- mallocForeignPtrBytes (dummy * nelem)
-    withForeignPtr fptr $ \ptr ->
-      R.withManifest' arr $ \arr' ->
-        let go i
-              | i == nelem = return ()
-              | otherwise  = pokeElemOff ptr i (arr' R.! (Z :. i)) >> go (i+1)
-        in  go 0
+    let nelem = R.size (R.extent arr)
+        fptr = RF.toForeignPtr arr
     return (fptr, 0, nelem)
 
   {-# INLINE toForeignPtr #-}
   {-# SPECIALIZE toForeignPtr
-    :: Array DIM1 Double -> IO (ForeignPtr Double, Int, Int) #-}
+    :: Array F DIM1 Double -> IO (ForeignPtr Double, Int, Int) #-}
   {-# SPECIALIZE toForeignPtr
-    :: Array DIM1 Float -> IO (ForeignPtr Float, Int, Int) #-}
+    :: Array F DIM1 Float -> IO (ForeignPtr Float, Int, Int) #-}
   {-# SPECIALIZE toForeignPtr
-    :: Array DIM1 Word16 -> IO (ForeignPtr Word16, Int, Int) #-}
+    :: Array F DIM1 Word16 -> IO (ForeignPtr Word16, Int, Int) #-}
   {-# SPECIALIZE toForeignPtr
-    :: Array DIM1 Word32 -> IO (ForeignPtr Word32, Int, Int) #-}
-
--- Unsafe from foreign pointer.
---
--- This function was introduced from repa 2.2.0.
--- Writing here to support repa < 2.2.0.
---
-unsafeFFP :: (Shape sh, Storable a) => sh -> ForeignPtr a -> Array sh a
-unsafeFFP sh fptr =
-  R.fromFunction sh $ \ix ->
-    unsafePerformIO $ withForeignPtr fptr $ \ptr ->
-      peekElemOff ptr $ R.toIndex sh ix
-{-# INLINE unsafeFFP #-}
+    :: Array F DIM1 Word32 -> IO (ForeignPtr Word32, Int, Int) #-}
 
 -- | Converts multi channel signal to vector signal.
-fromMC :: Elt a => Array DIM2 a -> Array DIM1 a
-fromMC arr = R.backpermute sh' f arr where
+-- fromMC :: Elt a => Array DIM2 a -> Array DIM1 a
+fromMC ::
+  (Repr r1 e, Repr r2 e, Fillable r2 e, Monad m)
+  => Array r1 DIM2 e -> m (Array r2 DIM1 e)
+fromMC arr = R.computeP $ R.backpermute sh' f arr where
   sh' = Z :. (nc * nf)
+  {-# INLINE sh' #-}
   _ :. nc :. nf = R.extent arr
   f (Z :. i) = Z :. i `mod` nc :. i `div` nc
+  {-# INLINE f #-}
 {-# INLINE fromMC #-}
 
 -- | Converts vector signal to multi channel signal.
-toMC :: Elt a => Int -> Array DIM1 a -> Array DIM2 a
-toMC nc arr = R.backpermute sh' f arr where
+toMC ::
+  (Repr r1 e, Repr r2 e, Fillable r2 e, Monad m)
+  => Int -> Array r1 DIM1 e -> m (Array r2 DIM2 e)
+toMC nc arr = R.computeP $ R.backpermute sh' f arr where
   sh' = Z :. nc :. (nf `div` nc)
   _ :. nf = R.extent arr
   f (Z :. i :. j) = Z :. i + (j * nc)

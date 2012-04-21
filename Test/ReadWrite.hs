@@ -18,6 +18,7 @@ import Foreign.Marshal
 import System.IO.Unsafe (unsafePerformIO)
 
 import Data.Array.Repa ((:.)(..), Array(..), DIM2, Z(..))
+import Data.Array.Repa.Repr.ForeignPtr (F)
 import Sound.File.Sndfile (Sample(..))
 
 import qualified Data.Array.Repa as R
@@ -32,7 +33,7 @@ import Data.Array.Repa.IO.Sndfile
 
 test_copy :: FilePath -> FilePath -> IO ()
 test_copy i o = do
-  (info,arr) <- readSF i :: IO (Info, Array DIM2 Double)
+  (info,arr) <- readSF i :: IO (Info, Array F DIM2 Double)
   writeSF o info arr
 
 -- ---------------------------------------------------------------------------
@@ -55,8 +56,8 @@ test_copy_vec ifile ofile = do
   (i, vec) <- test_read_vec ifile :: IO (Info, V.Vector Double)
   test_write_vec i ofile vec
 
--- ---------------------------------------------------------------------------
--- Raw operations
+-- -- ---------------------------------------------------------------------------
+-- -- Raw operations
 
 read_raw :: FilePath -> IO (Info, [Double])
 read_raw path = do
@@ -76,7 +77,7 @@ read_raw path = do
   S.hClose hdl
   return $ (info, reverse vs)
 
-read_arr :: FilePath -> IO (Info, Array DIM2 Double)
+read_arr :: FilePath -> IO (Info, Array F DIM2 Double)
 read_arr path = do
   info <- S.getFileInfo path
   hdl <- S.openFile path S.ReadMode info
@@ -91,7 +92,8 @@ read_arr path = do
           return v
     return $ R.fromFunction sh $ \ix -> unsafePerformIO (go ix)
   S.hClose hdl
-  return (info, arr)
+  arr' <- R.computeP arr
+  return (info, arr')
 
 write_raw :: FilePath -> Info -> [Double] -> IO ()
 write_raw path info vs = do
@@ -111,10 +113,10 @@ write_sin_raw :: FilePath -> IO ()
 write_sin_raw path = write_raw path (waveMonoPcm16 ns) (take ns sin440) where
   ns = 48000
 
-genSine :: Int -> Double -> Array DIM2 Double
+genSine :: Int -> Double -> Array F DIM2 Double
 genSine dur frq =
   let sh = Z :. 1 :. (dur * 48000) :: DIM2
-  in  R.fromFunction sh $ \(_ :. _ :. (!j)) ->
+  in  R.computeS $ R.fromFunction sh $ \(_ :. _ :. (!j)) ->
         sin (frq * fromIntegral j * pi * 2 / 48000)
 
 waveMonoPcm16 :: Int -> Info
@@ -130,3 +132,17 @@ copy_raw :: FilePath -> FilePath -> IO ()
 copy_raw ifile ofile = do
   (info, arr) <- read_raw ifile
   write_raw ofile info arr
+
+sin440_ex :: IO ()
+sin440_ex = do
+  let dur = 3; freq = 440; sr = 48000
+      hdr = wav16 {samplerate = sr, frames = sr * dur}
+      sig = R.fromFunction (Z :. 1 :. dur * sr) $ \(_ :. _ :. i) ->
+        sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
+  sig' <- R.computeP sig :: IO (Array F DIM2 Double)
+  writeSF "sin440.wav" hdr sig'
+
+main_ex :: IO ()
+main_ex = do
+  (i, a) <- readSF "sin440.wav" :: IO (Info, Array F DIM2 Double)
+  writeSF "out.wav" i a

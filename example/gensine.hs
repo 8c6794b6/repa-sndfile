@@ -13,8 +13,10 @@ Generates sine wave.
 module Main where
 
 import System.Environment (getArgs)
-import Data.Array.Repa ((:.)(..), Array, DIM2, Z(..), force, fromFunction)
+import Data.Array.Repa
+  ((:.)(..), Array, D, DIM2, Z(..), fromFunction, computeP)
 import Data.Array.Repa.IO.Sndfile
+import Data.Array.Repa.Repr.ForeignPtr (F)
 
 import Sound.File.Sndfile.Buffer.Vector
 import qualified Data.Vector.Storable as V
@@ -29,7 +31,9 @@ main = do
           frq' = read frq
           fmt  = wav16 {frames = 48000 * dur'}
       in  case mode of
-        "buf" -> writeSF path fmt (force $ genSine dur' frq')
+        "buf" -> do
+          arr <- computeP (genSine dur' frq') :: IO (Array F DIM2 Double)
+          writeSF path fmt arr
         "vec" -> S.writeFile fmt path (genSine' dur' frq') >> return ()
         _     -> usage
     _ -> usage
@@ -41,7 +45,7 @@ usage = error "Usage: duration freq path [buf|vec]"
 genSine
   :: Int    -- ^ Duration in seconds.
   -> Double -- ^ Frequency
-  -> Array DIM2 Double
+  -> Array D DIM2 Double
 genSine dur frq = fromFunction sh go where
   {-# INLINE sh #-}
   sh = Z :. 1 :. (dur * 48000)
