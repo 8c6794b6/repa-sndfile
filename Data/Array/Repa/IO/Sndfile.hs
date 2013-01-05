@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -8,7 +6,7 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : $Header$
-CopyRight   : (c) 8c6794b6
+CopyRight   : (c) 2011-2013, 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : experimental
@@ -53,8 +51,8 @@ import Data.Word (Word16, Word32)
 import Foreign.ForeignPtr (ForeignPtr)
 
 import Data.Array.Repa
-  (Array, DIM1, DIM2, Z(..), (:.)(..), Repr)
-import Data.Array.Repa.Eval (Fillable)
+  (Array, DIM1, DIM2, Z(..), (:.)(..), Source)
+import Data.Array.Repa.Eval (Target)
 import Data.Array.Repa.Repr.ForeignPtr (F)
 import Sound.File.Sndfile (Buffer(..), Info(..), Sample)
 
@@ -110,7 +108,7 @@ Write 440hz sine wav for 3 seconds to \"sin440.wav\".
 -- writing sound file.
 --
 readSF ::
-  forall a r. (Sample a, Fillable r a, Repr r a)
+  forall a r. (Sample a, Source r a, Target r a, Buffer (Array F DIM1) a)
   => FilePath -> IO (Info, Array r DIM2 a)
 readSF path = do
   (info, arr) <- S.readFile path :: IO (Info, Maybe (Array F DIM1 a))
@@ -120,7 +118,7 @@ readSF path = do
       arr'' <- toMC (S.channels info) arr'
       return (info, arr'')
 
-{-# INLINE readSF #-}
+{-# INLINEABLE readSF #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Double) #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Float) #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Word16) #-}
@@ -133,15 +131,14 @@ readSF path = do
 --
 writeSF ::
   forall a r.
-  ( Sample a, Repr r a, Buffer (Array r DIM1) a
-  , Fillable r a )
+  ( Sample a, Source r a, Buffer (Array r DIM1) a, Target r a )
   => FilePath -> Info -> Array r DIM2 a -> IO ()
 writeSF path info arr = do
   arr' <- fromMC arr :: IO (Array r DIM1 a)
   S.writeFile info path arr'
   return ()
 
-{-# INLINE writeSF #-}
+{-# INLINEABLE writeSF #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Double -> IO () #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Float -> IO () #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Word16 -> IO () #-}
@@ -152,7 +149,7 @@ writeSF path info arr = do
 -- Performs given action using sound file info and samples as arguments.
 --
 withSF
-  :: forall a b r. (Sample a, Fillable r a, Repr r a)
+  :: forall a b r. (Sample a, Target r a, Source r a)
   => FilePath -> (Info -> Array r DIM2 a -> IO b) -> IO b
 withSF path act = do
   (info, arr) <- S.readFile path :: IO (Info, Maybe (Array F DIM1 a))
@@ -162,7 +159,7 @@ withSF path act = do
       arr'' <- toMC (S.channels info) arr' :: IO (Array r DIM2 a)
       act info arr''
 
-{-# INLINE withSF #-}
+{-# INLINEABLE withSF #-}
 {-# SPECIALIZE withSF
   :: FilePath -> (Info -> Array F DIM2 Double -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
@@ -171,6 +168,7 @@ withSF path act = do
   :: FilePath -> (Info -> Array F DIM2 Word16 -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
   :: FilePath -> (Info -> Array F DIM2 Word32 -> IO b) -> IO b #-}
+
 
 -- ---------------------------------------------------------------------------
 -- Internal work
@@ -183,7 +181,7 @@ instance (Sample e) => Buffer (Array F DIM1) e where
   --
   fromForeignPtr fptr _ count = return $ RF.fromForeignPtr (Z :. count) fptr
 
-  {-# INLINE fromForeignPtr #-}
+  {-# INLINEABLE fromForeignPtr #-}
   {-# SPECIALIZE fromForeignPtr
     :: ForeignPtr Double -> Int -> Int -> IO (Array F DIM1 Double) #-}
   {-# SPECIALIZE fromForeignPtr
@@ -200,7 +198,7 @@ instance (Sample e) => Buffer (Array F DIM1) e where
         fptr = RF.toForeignPtr arr
     return (fptr, 0, nelem)
 
-  {-# INLINE toForeignPtr #-}
+  {-# INLINEABLE toForeignPtr #-}
   {-# SPECIALIZE toForeignPtr
     :: Array F DIM1 Double -> IO (ForeignPtr Double, Int, Int) #-}
   {-# SPECIALIZE toForeignPtr
@@ -210,10 +208,11 @@ instance (Sample e) => Buffer (Array F DIM1) e where
   {-# SPECIALIZE toForeignPtr
     :: Array F DIM1 Word32 -> IO (ForeignPtr Word32, Int, Int) #-}
 
+
 -- | Converts multi channel signal to vector signal.
 -- fromMC :: Elt a => Array DIM2 a -> Array DIM1 a
 fromMC ::
-  (Repr r1 e, Repr r2 e, Fillable r2 e, Monad m)
+  (Source r1 e, Source r2 e, Target r2 e, Monad m)
   => Array r1 DIM2 e -> m (Array r2 DIM1 e)
 fromMC arr = R.computeP $ R.backpermute sh' f arr where
   sh' = Z :. (nc * nf)
@@ -223,9 +222,10 @@ fromMC arr = R.computeP $ R.backpermute sh' f arr where
   {-# INLINE f #-}
 {-# INLINE fromMC #-}
 
+
 -- | Converts vector signal to multi channel signal.
 toMC ::
-  (Repr r1 e, Repr r2 e, Fillable r2 e, Monad m)
+  (Monad m, Source r1 e, Source r2 e, Target r2 e)
   => Int -> Array r1 DIM1 e -> m (Array r2 DIM2 e)
 toMC nc arr = R.computeP $ R.backpermute sh' f arr where
   sh' = Z :. nc :. (nf `div` nc)

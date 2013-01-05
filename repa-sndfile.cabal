@@ -1,5 +1,5 @@
 Name:           repa-sndfile
-Version:        3.1.1.1
+Version:        3.2.3.1
 Synopsis:       Reading and writing sound files with repa arrays
 License:        BSD3
 License-file:   LICENSE
@@ -33,60 +33,47 @@ Library
     -O3 -fllvm -optl-O3
   ghc-prof-options:
     -caf-all -auto-all
-
   Exposed-modules:
     Data.Array.Repa.IO.Sndfile
-
   Build-depends:
     base >= 4.0 && < 5.0,
-    hsndfile >= 0.5.2 && < 1.0,
-    repa >= 3.1.1 && < 3.2
-
+    hsndfile >= 0.5.2,
+    repa == 3.2.3.*
   if flag(dev)
     build-depends:
       hsndfile-vector >= 0.5.2,
-      vector >= 0.9 && < 1.0
-    Other-modules:
+      vector >= 0.9
+    Exposed-modules:
       Test.ReadWrite
 
 executable rw
+  hs-source-dirs:
+    example
   main-is:
-    example/rw.hs
-  if flag(dev)
-    buildable: True
-  else
-    buildable: False
-  build-depends:
-    base >= 4 && < 5,
-    hsndfile >= 0.5.2 && < 1.0,
-    hsndfile-vector >= 0.5.2 && < 1.0,
-    repa >= 3.1.1 && < 3.2,
-    vector >= 0.9 && < 1.0,
-    repa-sndfile -any
-
+    rw.hs
   ghc-options:
     -Wall -rtsopts -threaded
     -fno-warn-unused-do-bind
     -fno-warn-orphans
   ghc-prof-options:
     -caf-all -auto-all
-
-executable gensine
-  hs-source-dirs:
-    example
-  main-is:
-    gensine.hs
   if flag(dev)
     buildable: True
   else
     buildable: False
   build-depends:
     base >= 4 && < 5,
-    hsndfile >= 0.5.2 && < 1.0,
-    hsndfile-vector >= 0.5.2 && < 1.0,
-    vector >= 0.9 && < 1.0,
-    repa >= 3.1.1 && < 3.2,
+    hsndfile >= 0.5.2,
+    hsndfile-vector >= 0.5.2,
+    repa >= 3.2.3,
+    vector >= 0.9,
     repa-sndfile -any
+
+executable gensine
+  hs-source-dirs:
+    example
+  main-is:
+    gensine.hs
   ghc-options:
     -Wall -rtsopts -threaded
     -fno-warn-unused-do-bind
@@ -94,6 +81,17 @@ executable gensine
     -O3 -fllvm -optl-O3
   ghc-prof-options:
     -caf-all -auto-all
+  if flag(dev)
+    buildable: True
+  else
+    buildable: False
+  build-depends:
+    base >= 4 && < 5,
+    hsndfile >= 0.5.2,
+    hsndfile-vector >= 0.5.2,
+    vector >= 0.9,
+    repa == 3.2.3.*,
+    repa-sndfile -any
 
 source-repository head
   type: git
