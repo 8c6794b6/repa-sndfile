@@ -19,16 +19,19 @@ Extra-source-files:
   example/rw.hs
   README.md
 
-flag dev
+flag example
   description:
-    Add developer options
+    Compile example executables
   default:
     False
+
+source-repository head
+  type: git
+  location: https://github.com/8c6794b6/repa-sndfile.git
 
 Library
   ghc-options:
     -Wall
-    -fno-warn-unused-do-bind
     -fno-warn-orphans
     -O3 -fllvm -optl-O3
   ghc-prof-options:
@@ -39,14 +42,38 @@ Library
     base >= 4.0 && < 5.0,
     hsndfile >= 0.7.1,
     repa == 3.2.3.*
-  if flag(dev)
+  if flag(example)
     build-depends:
       hsndfile-vector >= 0.5.2,
-      vector >= 0.9
+      vector >= 0.10.9
     Exposed-modules:
-      Test.ReadWrite
+      Test.Examples
+
+test-suite tests
+  type:
+    exitcode-stdio-1.0
+  ghc-options:
+    -Wall -rtsopts -threaded
+    -fno-warn-orphans
+  main-is:
+    tests/Main.hs
+  other-modules:
+    Test.Examples
+  build-depends:
+    base,
+    directory >= 1.2.0,
+    filepath >= 1.3.0,
+    hsndfile >= 0.7.1,
+    hsndfile-vector >= 0.5.2,
+    repa >= 3.2.3,
+    vector >= 0.10.9,
+    repa-sndfile -any
 
 executable rw
+  if flag(example)
+    buildable: True
+  else
+    buildable: False
   hs-source-dirs:
     example
   main-is:
@@ -55,21 +82,22 @@ executable rw
     -Wall -rtsopts -threaded
     -fno-warn-unused-do-bind
     -fno-warn-orphans
+    -O3 -fllvm -optl-O3
   ghc-prof-options:
     -caf-all -auto-all
-  if flag(dev)
-    buildable: True
-  else
-    buildable: False
   build-depends:
     base >= 4 && < 5,
     hsndfile >= 0.7.1,
     hsndfile-vector >= 0.5.2,
     repa >= 3.2.3,
-    vector >= 0.9,
+    vector >= 0.10.9,
     repa-sndfile -any
 
 executable gensine
+  if flag(example)
+    buildable: True
+  else
+    buildable: False
   hs-source-dirs:
     example
   main-is:
@@ -81,18 +109,10 @@ executable gensine
     -O3 -fllvm -optl-O3
   ghc-prof-options:
     -caf-all -auto-all
-  if flag(dev)
-    buildable: True
-  else
-    buildable: False
   build-depends:
     base >= 4 && < 5,
     hsndfile >= 0.7.1,
     hsndfile-vector >= 0.5.2,
-    vector >= 0.9,
-    repa == 3.2.3.*,
+    vector >= 0.10.9,
+    repa >= 3.2.3,
     repa-sndfile -any
-
-source-repository head
-  type: git
-  location: https://github.com/8c6794b6/repa-sndfile.git

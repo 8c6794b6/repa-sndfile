@@ -1,7 +1,7 @@
 module Main where
 
 import System.Environment (getArgs)
-import Test.ReadWrite
+import Test.Examples
 
 {-
 Using storable vector runs faster, depending on file size.

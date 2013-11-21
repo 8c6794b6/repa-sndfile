@@ -1,16 +1,15 @@
 {-# LANGUAGE BangPatterns, TypeOperators, ScopedTypeVariables #-}
 {-|
-Module      : $Header$
 CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : experimental
 Portability : non-portable
 
-Tests for reading and writing sound files.
+Example for reading and writing sound files, and generating sine wave.
 
 -}
-module Test.ReadWrite where
+module Test.Examples where
 
 import Foreign.Ptr
 import Foreign.Storable (Storable(..))
@@ -33,7 +32,7 @@ import Data.Array.Repa.IO.Sndfile
 
 test_copy :: FilePath -> FilePath -> IO ()
 test_copy i o = do
-  (info,arr) <- readSF i :: IO (Info, Array F DIM2 Double)
+  (info, arr) <- readSF i :: IO (Info, Array F DIM2 Double)
   writeSF o info arr
 
 -- ---------------------------------------------------------------------------
@@ -48,7 +47,7 @@ test_read_vec file = do
 
 test_write_vec :: Sample a => Info -> FilePath -> V.Vector a -> IO ()
 test_write_vec info file vec = do
-  S.writeFile info file (SV.toBuffer vec)
+  _ <- S.writeFile info file (SV.toBuffer vec)
   return ()
 
 test_copy_vec :: FilePath -> FilePath -> IO ()
@@ -68,7 +67,7 @@ read_raw path = do
   let go p n acc
         | n == S.frames info = return acc
         | otherwise          = do
-          S.hGetBuf hdl p 1
+          _ <- S.hGetBuf hdl p 1
           !v <- peek p
           go p (n+1) (v:acc)
 
@@ -81,11 +80,11 @@ read_arr :: FilePath -> IO (Info, Array F DIM2 Double)
 read_arr path = do
   info <- S.getFileInfo path
   hdl <- S.openFile path S.ReadMode info
-  let dummy = sizeOf (undefined :: Double)
+  let sizeOfDouble = sizeOf (undefined :: Double)
       nf = S.frames info
       nc = S.channels info
-  arr <- allocaBytes (nf*nc*dummy) $ \ptr -> do
-    S.hGetBuf hdl ptr (nf * nc)
+  arr <- allocaBytes (nf*nc*sizeOfDouble) $ \ptr -> do
+    _ <- S.hGetBuf hdl ptr (nf * nc)
     let sh = Z :. 1 :. nf :: DIM2
         go (_ :. (!i)) = do
           !v <- peekElemOff ptr i
@@ -110,14 +109,17 @@ sin440 :: [Double]
 sin440 = [sin (440 * i * pi * 2 / 48000) | i <- [0..]]
 
 write_sin_raw :: FilePath -> IO ()
-write_sin_raw path = write_raw path (waveMonoPcm16 ns) (take ns sin440) where
-  ns = 48000
+write_sin_raw path = write_raw path (waveMonoPcm16 ns) (take ns sin440)
+  where
+    ns = 48000
 
-genSine :: Int -> Double -> Array F DIM2 Double
-genSine dur frq =
-  let sh = Z :. 1 :. (dur * 48000) :: DIM2
-  in  R.computeS $ R.fromFunction sh $ \(_ :. _ :. (!j)) ->
-        sin (frq * fromIntegral j * pi * 2 / 48000)
+genSine :: Int -> Double -> Array R.D DIM2 Double
+genSine dur frq = R.fromFunction sh go
+  where
+    sh = Z :. 1 :. (dur * sr)
+    go (_:._:.j) = sin (frq * fromIntegral j * pi * 2 / sr)
+    sr :: Num a => a
+    sr = 48000
 
 waveMonoPcm16 :: Int -> Info
 waveMonoPcm16 nsample = Info

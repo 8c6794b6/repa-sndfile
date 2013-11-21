@@ -40,7 +40,7 @@ module Data.Array.Repa.IO.Sndfile
   , S.SampleFormat(..)
   , S.Count
 
-    -- * Util
+    -- * Utils
   , toMC
   , fromMC
   , wav16
