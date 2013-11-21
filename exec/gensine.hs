@@ -12,15 +12,16 @@ Generates sine wave.
 -}
 module Main where
 
-import System.Environment (getArgs)
-import Data.Array.Repa
-  ((:.)(..), Array, D, DIM2, Z(..), fromFunction, computeP)
-import Data.Array.Repa.IO.Sndfile
+import Data.Array.Repa (Array, DIM2, computeP)
 import Data.Array.Repa.Repr.ForeignPtr (F)
-
-import Sound.File.Sndfile.Buffer.Vector
 import qualified Data.Vector.Storable as V
 import qualified Sound.File.Sndfile as S
+import Sound.File.Sndfile.Buffer.Vector
+import System.Environment (getArgs)
+
+import Data.Array.Repa.IO.Sndfile
+import Data.Array.Repa.IO.Sndfile.Examples (genSine)
+
 
 main :: IO ()
 main = do
@@ -40,18 +41,6 @@ main = do
 
 usage :: IO ()
 usage = error "Usage: duration freq path [buf|vec]"
-
--- | Generates sine wave.
-genSine
-  :: Int    -- ^ Duration in seconds.
-  -> Double -- ^ Frequency
-  -> Array D DIM2 Double
-genSine dur frq = fromFunction sh go where
-  {-# INLINE sh #-}
-  sh = Z :. 1 :. (dur * 48000)
-  {-# INLINE go #-}
-  go (_:._:.j) = sin (frq * fromIntegral j * pi * 2 / 48000)
-{-# INLINE genSine #-}
 
 {- ---------------------------------------------------------------------------
  - Write stereo sound, using different frequency for each channel.

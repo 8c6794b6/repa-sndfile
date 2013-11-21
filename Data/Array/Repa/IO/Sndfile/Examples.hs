@@ -28,12 +28,28 @@ import qualified Sound.File.Sndfile.Buffer.Vector as SV
 import Data.Array.Repa.IO.Sndfile
 
 -- ---------------------------------------------------------------------------
--- Read sound file as repa array, then write it without modification.
+-- Using Repa
 
+-- | Read sound file as repa array, then write it without modification.
 copySF :: FilePath -> FilePath -> IO ()
 copySF i o = do
   (info, arr) <- readSF i :: IO (Info, Array F DIM2 Double)
   writeSF o info arr
+
+-- | Generate sine wave.
+genSine ::
+    Int       -- ^ Duration in seconds.
+    -> Double -- ^ Frequency.
+    -> Array R.D DIM2 Double
+genSine dur frq = R.fromFunction sh go
+  where
+    sh = Z :. 1 :. (dur * sr)
+    {-# INLINE sh #-}
+    go (_:._:.j) = sin (frq * fromIntegral j * pi * 2 / sr)
+    {-# INLINE go #-}
+    sr :: Num a => a
+    {-# INLINE sr #-}
+    sr = 48000
 
 -- ---------------------------------------------------------------------------
 -- Using storable vector, run faster when input file is small.
@@ -55,8 +71,8 @@ test_copy_vec ifile ofile = do
   (i, vec) <- test_read_vec ifile :: IO (Info, V.Vector Double)
   test_write_vec i ofile vec
 
--- -- ---------------------------------------------------------------------------
--- -- Raw operations
+-- ---------------------------------------------------------------------------
+-- Raw operations
 
 read_raw :: FilePath -> IO (Info, [Double])
 read_raw path = do
@@ -113,13 +129,10 @@ write_sin_raw path = write_raw path (waveMonoPcm16 ns) (take ns sin440)
   where
     ns = 48000
 
-genSine :: Int -> Double -> Array R.D DIM2 Double
-genSine dur frq = R.fromFunction sh go
-  where
-    sh = Z :. 1 :. (dur * sr)
-    go (_:._:.j) = sin (frq * fromIntegral j * pi * 2 / sr)
-    sr :: Num a => a
-    sr = 48000
+copy_raw :: FilePath -> FilePath -> IO ()
+copy_raw ifile ofile = do
+  (info, arr) <- read_raw ifile
+  write_raw ofile info arr
 
 waveMonoPcm16 :: Int -> Info
 waveMonoPcm16 nsample = Info
@@ -129,22 +142,3 @@ waveMonoPcm16 nsample = Info
   , format = Format HeaderFormatWav SampleFormatPcm16 EndianFile
   , sections = 1
   , seekable = True }
-
-copy_raw :: FilePath -> FilePath -> IO ()
-copy_raw ifile ofile = do
-  (info, arr) <- read_raw ifile
-  write_raw ofile info arr
-
-sin440_ex :: IO ()
-sin440_ex = do
-  let dur = 3; freq = 440; sr = 48000
-      hdr = wav16 {samplerate = sr, frames = sr * dur}
-      sig = R.fromFunction (Z :. 1 :. dur * sr) $ \(_ :. _ :. i) ->
-        sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
-  sig' <- R.computeP sig :: IO (Array F DIM2 Double)
-  writeSF "sin440.wav" hdr sig'
-
-main_ex :: IO ()
-main_ex = do
-  (i, a) <- readSF "sin440.wav" :: IO (Info, Array F DIM2 Double)
-  writeSF "out.wav" i a
