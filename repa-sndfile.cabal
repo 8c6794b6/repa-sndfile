@@ -1,5 +1,5 @@
 Name:           repa-sndfile
-Version:        3.2.3.1
+Version:        3.2.3.2
 Synopsis:       Reading and writing sound files with repa arrays
 License:        BSD3
 License-file:   LICENSE
@@ -17,7 +17,7 @@ Description:
 Extra-source-files:
   example/gensine.hs
   example/rw.hs
-  README
+  README.md
 
 flag dev
   description:
@@ -37,7 +37,7 @@ Library
     Data.Array.Repa.IO.Sndfile
   Build-depends:
     base >= 4.0 && < 5.0,
-    hsndfile >= 0.5.2,
+    hsndfile >= 0.7.1,
     repa == 3.2.3.*
   if flag(dev)
     build-depends:
@@ -63,7 +63,7 @@ executable rw
     buildable: False
   build-depends:
     base >= 4 && < 5,
-    hsndfile >= 0.5.2,
+    hsndfile >= 0.7.1,
     hsndfile-vector >= 0.5.2,
     repa >= 3.2.3,
     vector >= 0.9,
@@ -87,7 +87,7 @@ executable gensine
     buildable: False
   build-depends:
     base >= 4 && < 5,
-    hsndfile >= 0.5.2,
+    hsndfile >= 0.7.1,
     hsndfile-vector >= 0.5.2,
     vector >= 0.9,
     repa == 3.2.3.*,

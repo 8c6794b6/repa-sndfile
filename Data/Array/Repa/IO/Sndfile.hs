@@ -15,7 +15,11 @@ Portability : non-portable
 Read and write audio file with repa arrays using libsndfile via hsndfile.
 Note that this module re-exports header related types from hsndfile.
 
-For more info about supported format, visit libsndfile web site.
+For more info about supported format, visit libsndfile web site:
+
+* libsndfile: <http://www.mega-nerd.com/libsndfile/>
+
+* hsndfile <http://haskell.org/haskellwiki/Hsndfile>
 
 -}
 module Data.Array.Repa.IO.Sndfile
@@ -42,18 +46,15 @@ module Data.Array.Repa.IO.Sndfile
   , wav16
   , wav32
 
-    -- * References
-    -- $references
-
   ) where
 
-import Data.Word (Word16, Word32)
 import Foreign.ForeignPtr (ForeignPtr)
 
 import Data.Array.Repa
   (Array, DIM1, DIM2, Z(..), (:.)(..), Source)
 import Data.Array.Repa.Eval (Target)
 import Data.Array.Repa.Repr.ForeignPtr (F)
+import Data.Int (Int16, Int32)
 import Sound.File.Sndfile (Buffer(..), Info(..), Sample)
 
 import qualified Data.Array.Repa as R
@@ -76,7 +77,7 @@ Read \"in.wav\", write to \"out.wav\" with same format.
 >   (i, a) <- readSF "in.wav" :: IO (Info, Array F DIM2 Double)
 >   writeSF "out.wav" i a
 
-Write 440hz sine wav for 3 seconds to \"sin440.wav\".
+Write 440hz sine wave for 3 seconds to \"sin440.wav\".
 
 > sin440 :: IO ()
 > sin440 = do
@@ -86,14 +87,6 @@ Write 440hz sine wav for 3 seconds to \"sin440.wav\".
 >         sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
 >   sig' <- computeP sig :: IO (Array F DIM2 Double)
 >   writeSF "sin440.wav" hdr sig'
-
--}
-
-{-$references
-
-* libsndfile: <http://www.mega-nerd.com/libsndfile/>
-
-* hsndfile <http://haskell.org/haskellwiki/Hsndfile>
 
 -}
 
@@ -121,8 +114,8 @@ readSF path = do
 {-# INLINEABLE readSF #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Double) #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Float) #-}
-{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Word16) #-}
-{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Word32) #-}
+{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Int16) #-}
+{-# SPECIALIZE readSF :: FilePath -> IO (Info, Array F DIM2 Int32) #-}
 
 -- | Write array contents to sound file with given header information.
 --
@@ -135,14 +128,14 @@ writeSF ::
   => FilePath -> Info -> Array r DIM2 a -> IO ()
 writeSF path info arr = do
   arr' <- fromMC arr :: IO (Array r DIM1 a)
-  S.writeFile info path arr'
+  _ <- S.writeFile info path arr'
   return ()
 
 {-# INLINEABLE writeSF #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Double -> IO () #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Float -> IO () #-}
-{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Word16 -> IO () #-}
-{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Word32-> IO () #-}
+{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Int16 -> IO () #-}
+{-# SPECIALIZE writeSF :: FilePath -> Info -> Array F DIM2 Int32-> IO () #-}
 
 -- | Wrapper for invoking array with reading sound file.
 --
@@ -165,9 +158,9 @@ withSF path act = do
 {-# SPECIALIZE withSF
   :: FilePath -> (Info -> Array F DIM2 Float -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
-  :: FilePath -> (Info -> Array F DIM2 Word16 -> IO b) -> IO b #-}
+  :: FilePath -> (Info -> Array F DIM2 Int16 -> IO b) -> IO b #-}
 {-# SPECIALIZE withSF
-  :: FilePath -> (Info -> Array F DIM2 Word32 -> IO b) -> IO b #-}
+  :: FilePath -> (Info -> Array F DIM2 Int32 -> IO b) -> IO b #-}
 
 
 -- ---------------------------------------------------------------------------
@@ -175,7 +168,7 @@ withSF path act = do
 
 -- | Orphan instance for reading/wriging sound file to array via ForeignPtr.
 --
-instance (Sample e) => Buffer (Array F DIM1) e where
+instance Sample e => Buffer (Array F DIM1) e where
 
   -- Read the whole contents to DIM1 array, ignoring channel number.
   --
@@ -187,9 +180,9 @@ instance (Sample e) => Buffer (Array F DIM1) e where
   {-# SPECIALIZE fromForeignPtr
     :: ForeignPtr Float -> Int -> Int -> IO (Array F DIM1 Float) #-}
   {-# SPECIALIZE fromForeignPtr
-    :: ForeignPtr Word16 -> Int -> Int -> IO (Array F DIM1 Word16) #-}
+    :: ForeignPtr Int16 -> Int -> Int -> IO (Array F DIM1 Int16) #-}
   {-# SPECIALIZE fromForeignPtr
-    :: ForeignPtr Word32 -> Int -> Int -> IO (Array F DIM1 Word32) #-}
+    :: ForeignPtr Int32 -> Int -> Int -> IO (Array F DIM1 Int32) #-}
 
   -- Allocate whole memory for writing, fill in with element of array.
   --
@@ -204,13 +197,12 @@ instance (Sample e) => Buffer (Array F DIM1) e where
   {-# SPECIALIZE toForeignPtr
     :: Array F DIM1 Float -> IO (ForeignPtr Float, Int, Int) #-}
   {-# SPECIALIZE toForeignPtr
-    :: Array F DIM1 Word16 -> IO (ForeignPtr Word16, Int, Int) #-}
+    :: Array F DIM1 Int16 -> IO (ForeignPtr Int16, Int, Int) #-}
   {-# SPECIALIZE toForeignPtr
-    :: Array F DIM1 Word32 -> IO (ForeignPtr Word32, Int, Int) #-}
+    :: Array F DIM1 Int32 -> IO (ForeignPtr Int32, Int, Int) #-}
 
 
 -- | Converts multi channel signal to vector signal.
--- fromMC :: Elt a => Array DIM2 a -> Array DIM1 a
 fromMC ::
   (Source r1 e, Source r2 e, Target r2 e, Monad m)
   => Array r1 DIM2 e -> m (Array r2 DIM1 e)
