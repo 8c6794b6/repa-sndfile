@@ -15,8 +15,6 @@ Description:
   The code is using libsndfile and hsndfile package.
 
 Extra-source-files:
-  example/gensine.hs
-  example/rw.hs
   README.md
 
 flag example
