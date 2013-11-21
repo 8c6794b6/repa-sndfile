@@ -7,7 +7,7 @@ import System.Exit (exitFailure, exitSuccess)
 import System.FilePath ((</>))
 
 import Data.Array.Repa.IO.Sndfile (readSF, writeSF)
-import Test.Examples (genSine, waveMonoPcm16)
+import Data.Array.Repa.IO.Sndfile.Examples (genSine, waveMonoPcm16)
 
 main :: IO ()
 main = do

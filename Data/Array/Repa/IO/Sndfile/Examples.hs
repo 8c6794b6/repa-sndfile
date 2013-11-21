@@ -9,7 +9,7 @@ Portability : non-portable
 Example for reading and writing sound files, and generating sine wave.
 
 -}
-module Test.Examples where
+module Data.Array.Repa.IO.Sndfile.Examples where
 
 import Foreign.Ptr
 import Foreign.Storable (Storable(..))
@@ -30,8 +30,8 @@ import Data.Array.Repa.IO.Sndfile
 -- ---------------------------------------------------------------------------
 -- Read sound file as repa array, then write it without modification.
 
-test_copy :: FilePath -> FilePath -> IO ()
-test_copy i o = do
+copySF :: FilePath -> FilePath -> IO ()
+copySF i o = do
   (info, arr) <- readSF i :: IO (Info, Array F DIM2 Double)
   writeSF o info arr
 

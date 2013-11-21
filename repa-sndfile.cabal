@@ -47,7 +47,7 @@ Library
       hsndfile-vector >= 0.5.2,
       vector >= 0.10.9
     Exposed-modules:
-      Test.Examples
+      Data.Array.Repa.IO.Sndfile.Examples
 
 test-suite tests
   type:
@@ -56,9 +56,9 @@ test-suite tests
     -Wall -rtsopts -threaded
     -fno-warn-orphans
   main-is:
-    tests/Main.hs
+    exec/tests.hs
   other-modules:
-    Test.Examples
+    Data.Array.Repa.IO.Sndfile.Examples
   build-depends:
     base >= 4.6 && < 5.0,
     directory >= 1.2.0,
@@ -75,7 +75,7 @@ executable rw
   else
     buildable: False
   hs-source-dirs:
-    example
+    exec
   main-is:
     rw.hs
   ghc-options:
@@ -99,7 +99,7 @@ executable gensine
   else
     buildable: False
   hs-source-dirs:
-    example
+    exec
   main-is:
     gensine.hs
   ghc-options:
