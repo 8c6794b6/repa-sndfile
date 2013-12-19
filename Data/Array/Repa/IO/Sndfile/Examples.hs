@@ -32,9 +32,8 @@ import Data.Array.Repa.IO.Sndfile
 
 -- | Read sound file as repa array, then write it without modification.
 copySF :: FilePath -> FilePath -> IO ()
-copySF i o = do
-  (info, arr) <- readSF i :: IO (Info, Array F DIM2 Double)
-  writeSF o info arr
+copySF i o =
+  uncurry (writeSF o) =<< (readSF i :: IO (Info, Array F DIM2 Double))
 
 -- | Generate sine wave.
 genSine ::
@@ -61,15 +60,15 @@ test_read_vec file = do
     Nothing  -> error "Fail"
     Just sig -> return $ (i, SV.fromBuffer sig)
 
-test_write_vec :: Sample a => Info -> FilePath -> V.Vector a -> IO ()
-test_write_vec info file vec = do
+test_write_vec :: Sample a => FilePath -> Info -> V.Vector a -> IO ()
+test_write_vec file info vec = do
   _ <- S.writeFile info file (SV.toBuffer vec)
   return ()
 
 test_copy_vec :: FilePath -> FilePath -> IO ()
-test_copy_vec ifile ofile = do
-  (i, vec) <- test_read_vec ifile :: IO (Info, V.Vector Double)
-  test_write_vec i ofile vec
+test_copy_vec ifile ofile =
+    (test_read_vec ifile :: IO (Info, V.Vector Double)) >>=
+    uncurry (test_write_vec ofile)
 
 -- ---------------------------------------------------------------------------
 -- Raw operations
