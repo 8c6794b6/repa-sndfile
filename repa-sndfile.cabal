@@ -39,7 +39,7 @@ Library
   Build-depends:
     base >= 4.6 && < 5.0,
     hsndfile >= 0.7.1,
-    repa == 3.2.3.*
+    repa >= 3.2.3
   if flag(example)
     build-depends:
       hsndfile-vector >= 0.5.2,
