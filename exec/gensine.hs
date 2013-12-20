@@ -12,15 +12,15 @@ Generates sine wave.
 -}
 module Main where
 
+import Control.Monad (void)
 import Data.Array.Repa (Array, DIM2, computeP)
 import Data.Array.Repa.Repr.ForeignPtr (F)
-import qualified Data.Vector.Storable as V
 import qualified Sound.File.Sndfile as S
 import Sound.File.Sndfile.Buffer.Vector
 import System.Environment (getArgs)
 
 import Data.Array.Repa.IO.Sndfile
-import Data.Array.Repa.IO.Sndfile.Examples (genSine)
+import Data.Array.Repa.IO.Sndfile.Examples (genSine, genSineV)
 
 
 main :: IO ()
@@ -35,7 +35,7 @@ main = do
         "buf" -> do
           arr <- computeP (genSine dur' frq') :: IO (Array F DIM2 Double)
           writeSF path fmt arr
-        "vec" -> S.writeFile fmt path (genSine' dur' frq') >> return ()
+        "vec" -> void $ S.writeFile fmt path (toBuffer $ genSineV dur' frq')
         _     -> usage
     _ -> usage
 
@@ -51,19 +51,12 @@ genSine dur frq =
   let sh = Z :. 2 :. (dur * 48000) :: DIM2
   in  fromFunction sh $ \(_ :. i :. j) ->
         sin (frq * (fromIntegral i + 1) * fromIntegral j * pi * 2 / 48000)
--}
 
--- | Generating 30 seconds of 440 hz sine wav took about 0.2 sec with repa,
--- in 8 core machine, using 8 threads. It uses 4x more memory of the
--- size of result file.
---
--- For just reading and writing sound files as haskell data, storable vector
--- took almost same execution time. It took about 0.25sec in same machine,
--- memory usage was less.
---
-genSine' :: Int -> Double -> Buffer Double
-genSine' dur frq =
-  toBuffer $
-  V.generate (48000 * dur) $ \i ->
-  sin (frq * fromIntegral i * pi * 2 / 48000)
-{-# INLINE genSine' #-}
+Generating 30 seconds of 440 hz sine wav took about 0.2 sec with repa, in 8 core
+machine, using 8 threads. It uses 4x more memory of the size of result file.
+
+For just reading and writing sound files as haskell data, storable vector took
+almost same execution time. It took about 0.25sec in same machine, memory usage
+was less.
+
+-}
