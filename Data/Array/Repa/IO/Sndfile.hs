@@ -50,8 +50,7 @@ module Data.Array.Repa.IO.Sndfile
 
 import Foreign.ForeignPtr (ForeignPtr)
 
-import Data.Array.Repa
-  (Array, DIM1, DIM2, Z(..), (:.)(..), Source)
+import Data.Array.Repa (Array, DIM1, DIM2, Z(..), (:.)(..), Source)
 import Data.Array.Repa.Eval (Target)
 import Data.Array.Repa.Repr.ForeignPtr (F)
 import Data.Int (Int16, Int32)
@@ -77,7 +76,7 @@ Read \"in.wav\", write to \"out.wav\" with same format.
 >   (i, a) <- readSF "in.wav" :: IO (Info, Array F DIM2 Double)
 >   writeSF "out.wav" i a
 
-Write 440hz sine wave for 3 seconds to \"sin440.wav\".
+Write 440hz sine wave for 3 seconds to monaural file \"sin440.wav\".
 
 > sin440 :: IO ()
 > sin440 = do
@@ -87,6 +86,22 @@ Write 440hz sine wave for 3 seconds to \"sin440.wav\".
 >         sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
 >   sig' <- computeP sig :: IO (Array F DIM2 Double)
 >   writeSF "sin440.wav" hdr sig'
+
+Write 440hz sine wave to channel 0, 880hz sine wave to channel 1, for 3 seconds
+to stereo file \"sin440and330.wav\".
+
+> sin440and880 :: IO ()
+> sin440and880 = do
+>     let dur = 3; freq1 = 440; freq2 = 880; sr = 480000
+>         hdr = wav16 {samplerate = sr, channels = 2, frames = sr * dur * 2}
+>         gen f i = sin (fromIntegral i * f * pi * 2 / fromIntegral sr)
+>         sig = R.fromFunction (Z :. 2 :. dur * sr) $ \(_ :. c :. i) ->
+>             case c of
+>                 0 -> gen freq1 i
+>                 1 -> gen freq2 i
+>                 _ -> 0
+>     sig' <- R.computeP sig :: IO (Array F DIM2 Double)
+>     writeSF "sin440and880.wav" hdr sig'
 
 -}
 
@@ -124,7 +139,7 @@ readSF path = do
 --
 writeSF ::
   forall a r.
-  ( Sample a, Source r a, Buffer (Array r DIM1) a, Target r a )
+  (Sample a, Source r a, Buffer (Array r DIM1) a, Target r a)
   => FilePath -> Info -> Array r DIM2 a -> IO ()
 writeSF path info arr = do
   arr' <- fromMC arr :: IO (Array r DIM1 a)
