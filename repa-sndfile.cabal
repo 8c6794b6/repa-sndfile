@@ -29,9 +29,7 @@ source-repository head
 
 Library
   ghc-options:
-    -Wall
-    -fno-warn-orphans
-    -O3 -fllvm -optl-O3
+    -Wall -fno-warn-orphans -O3
   ghc-prof-options:
     -caf-all -auto-all
   Exposed-modules:
@@ -78,9 +76,7 @@ executable rw
     rw.hs
   ghc-options:
     -Wall -rtsopts -threaded
-    -fno-warn-unused-do-bind
-    -fno-warn-orphans
-    -O3 -fllvm -optl-O3
+    -fno-warn-orphans -O3
   ghc-prof-options:
     -caf-all -auto-all
   build-depends:
@@ -102,9 +98,7 @@ executable gensine
     gensine.hs
   ghc-options:
     -Wall -rtsopts -threaded
-    -fno-warn-unused-do-bind
-    -fno-warn-orphans
-    -O3 -fllvm -optl-O3
+    -fno-warn-orphans -O3
   ghc-prof-options:
     -caf-all -auto-all
   build-depends:
