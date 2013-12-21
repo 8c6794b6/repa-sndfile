@@ -88,19 +88,19 @@ Write 440hz sine wave for 3 seconds to monaural file \"sin440.wav\".
 >   writeSF "sin440.wav" hdr sig'
 
 Write 440hz sine wave to channel 0, 880hz sine wave to channel 1, for 3 seconds
-to stereo file \"sin440and330.wav\".
+to stereo file \"sin440and880.wav\".
 
 > sin440and880 :: IO ()
 > sin440and880 = do
 >     let dur = 3; freq1 = 440; freq2 = 880; sr = 480000
 >         hdr = wav16 {samplerate = sr, channels = 2, frames = sr * dur * 2}
 >         gen f i = sin (fromIntegral i * f * pi * 2 / fromIntegral sr)
->         sig = R.fromFunction (Z :. 2 :. dur * sr) $ \(_ :. c :. i) ->
+>         sig = fromFunction (Z :. 2 :. dur * sr) $ \(_ :. c :. i) ->
 >             case c of
 >                 0 -> gen freq1 i
 >                 1 -> gen freq2 i
 >                 _ -> 0
->     sig' <- R.computeP sig :: IO (Array F DIM2 Double)
+>     sig' <- computeP sig :: IO (Array F DIM2 Double)
 >     writeSF "sin440and880.wav" hdr sig'
 
 -}
